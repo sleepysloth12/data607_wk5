@@ -5,6 +5,7 @@ date: "2023-09-27"
 output:
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -84,6 +85,55 @@ The most noticeable difference in delays occurred at Phoenix Airport, where AM W
 
 The least noticeable difference in delays occurred at San Francisco Airport. AM WEST had 129 delays and ALASKA had 102. It seems like San Francisco is just a busy airport.
 
+Now, I want to get the proportion of delayed flights per city per airport. To do this, first I piped my data to get the total count of flights per airline per city. Then, I piped my clean_data again to get all the delay numbers per airline per city. Then, I conducted an inner join to add both together. Now we have a column for number of delays and a column for total number of flights by airline then city. Afterwards, I calculated the ratio of delay flights and added that as a column. Then, I converted those ratios to percent. Finally, I displayed a table of the percent of delayed Flights by city and then airline.
+
+```{r}
+
+total_flights = clean_data %>%
+  group_by(Airline, City) %>%
+  summarize(Total_Count = sum(Count))
+
+delayed_flights = clean_data %>%
+  filter(Status == "delayed") %>%
+  group_by(Airline, City) %>%
+  summarize(Delayed_Count = sum(Count))
+
+delayed_and_total = inner_join(total_flights, delayed_flights, by = c("Airline", "City"))
+
+prop_delays=delayed_and_total %>%
+  mutate(Delayed_Ratio = Delayed_Count / Total_Count)
+
+prop_delays= prop_delays %>%
+  select(Airline, City, Delayed_Ratio)%>%
+  arrange(City)
+
+prop_delays= prop_delays %>%
+  mutate(Delayed_Percent=round(Delayed_Ratio*100, 1))
+
+library(knitr)
+prop_delays %>%
+  select(Airline, City, Delayed_Percent) %>%
+  kable(caption= "Percent of Delayed Flights by City and Airline")
+```
+
+If we look at the ratio of delays to total flights per city per airline, we can see that the ratio of delayed flights is somewhat similar between the two airlines. 8% of ALASKA flights are delayed to San Diego while 14.5% of AM WEST flights are delayed to the same city. Likewise, in San Francisco, 16.9% of ALASKA flights were delayed and 28.7% of AM WEST flights were delayed to there.
+
+Finally, I just wanted to include a graph so I plotted the total number of flights per by airline city using ggplot.
+
+```{r}
+library(ggplot2)
+
+ggplot(total_flights, aes(x=City, y=Total_Count, fill=Airline)) +
+  geom_bar(stat="identity", position="dodge") +
+  labs(title="Total Number of Flights per City per Airline",
+       x="City",
+       y="Total Number of Flights",
+       fill="Airline") +
+  theme_minimal()
+```
+
+As you can see from the visualization, Phoenix airport experiences WAY more flights from AM WEST then ALASKA. This might explain their slightly higher delay rate, as more flights mean more possibility for delays somewhere. Similarly, there is more ALASKA flights to Seattle when compared to AM WEST. Here though, ALASKA still experienced less delays.
+
 ## Conclusion
 
-In conclusion, the Tidyr and dplyr packages are really useful when it comes to cleaning and tidying data that is in a complex/weird format. These packages make the job easier because instead of hardcoding some of the functions already included in the package you can just focus and spend more time on analyzing the data. In this homework assignment, I made a wide CSV with airlines data. Then, I cleaned up that wide CSV into a format that is usable by R. Finally, I used my clean data set to compare the delays between the two airlines.
+In conclusion, the Tidyr and dplyr packages are really useful when it comes to cleaning and tidying data that is in a complex/weird format. These packages make the job easier because instead of hardcoding some of the functions already included in the package you can just focus and spend more time on analyzing the data. In this homework assignment, I made a wide CSV with airlines data. Then, I cleaned up that wide CSV into a format that is usable by R. Finally, I used my clean data set to compare the delays between the two airlines. After comparing the delays between the two airlines, I calculated the proportion and then percent of delays organized by city then airlines. I then graphed that on a table. Afterwards, I created a plot that shows the density of total flights going to each city per airline.
